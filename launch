@@ -75,7 +75,9 @@ if [ "${1:-}" = --setup ] || [ -z "$(get_env LAUNCH_MODE)" ]; then
 		[[ "$port" =~ ^[0-9]+$ ]] && [ "$port" -ge 1024 ] && [ "$port" -le 65535 ] && break
 		echo "  Pick a number between 1024 and 65535."; port=""
 	done
-	ask discord "Discord bot token (optional, Enter to skip)"
+	echo "Discord (optional): create a bot at https://discord.com/developers/applications and copy its token."
+	ask discord "Discord bot token (Enter to $([ -n "$(get_env DISCORD_BOT_TOKEN)" ] && echo keep the current one || echo skip))"
+	ask webhook "Discord webhook URL for pearl and alert notifications (Enter to $([ -n "$(get_env DISCORD_WEBHOOK_URL)" ] && echo keep the current one || echo skip))"
 
 	set_env LAUNCH_VPS "$vps"
 	set_env LAUNCH_MODE "$mode"
@@ -84,6 +86,7 @@ if [ "${1:-}" = --setup ] || [ -z "$(get_env LAUNCH_MODE)" ]; then
 	set_env MC_VERSION "$mc_version"
 	set_env PROXY_PORT "$port"
 	[ -z "$discord" ] || set_env DISCORD_BOT_TOKEN "$discord"
+	[ -z "$webhook" ] || set_env DISCORD_WEBHOOK_URL "$webhook"
 	say "Saved to .env (edit that file, or run ./launch --setup, to change it)"
 fi
 

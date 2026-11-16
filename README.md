@@ -84,7 +84,29 @@ Bot behaviour (auto-eat, auto-totem, kill aura, …) lives in [`config.yml`](./c
 
 - **Players** throw a pearl into a stasis chamber near the bot; it is registered to them automatically. They whisper or say `!load` to be pulled back, and `!pearls` to see how many they have.
 - **You** join the address `./launch` printed with the bot account to control it. While connected, `/whitelist add <name>` lets another account join the proxy too, and `/stasis` and `/hologram` manage chambers and holograms.
-- **Discord**: set `DISCORD_BOT_TOKEN`, invite the bot to your server, and players can link their account with `/connect` and use `/load`.
+- **Discord**: players link their account with `/connect` and pull their pearl with `/load` — see below.
+
+## Discord bot
+
+DukPearl has a Discord bot built in; it only needs a token.
+
+1. Open the [Discord Developer Portal](https://discord.com/developers/applications), click **New Application** and give it a name.
+2. Go to **Bot**, click **Reset Token**, and copy the token. No other switches on that page need changing.
+3. Run `./launch --setup` and paste the token at the Discord question (or put `DISCORD_BOT_TOKEN=...` in `.env`), then start DukPearl.
+4. The log prints an **invite link**. Open it and add the bot to your server.
+
+Players then use:
+
+| Command | What it does |
+| --- | --- |
+| `/connect` | Gives a code to say in game (`!connect <code>`), linking their Minecraft account to their Discord account |
+| `/load` | Pulls their pearl, for a linked account |
+
+Slash commands can take a few minutes to show up the first time.
+
+For notifications in a channel (pearl registered, totem popped, Sentry alerts), create a webhook under **Channel settings → Integrations → Webhooks** and give its URL at the webhook question, or set `DISCORD_WEBHOOK_URL` in `.env`. This works with or without the bot.
+
+If you run several DukPearl bots, give them all the same token; they share the one Discord bot.
 
 ## Troubleshooting
 

@@ -26,15 +26,10 @@ export class DiscordClient {
 		if (this.initialized) return;
 		this.initialized = true;
 
+		// Slash commands and buttons arrive as interactions, which need no privileged intents —
+		// so the bot works without enabling anything extra in the Discord Developer Portal.
 		const { Client, Events, GatewayIntentBits } = await import("discord.js");
-		this.client = new Client({
-			intents: [
-				GatewayIntentBits.Guilds,
-				GatewayIntentBits.GuildMessages,
-				GatewayIntentBits.MessageContent,
-				GatewayIntentBits.GuildMembers
-			]
-		});
+		this.client = new Client({ intents: [ GatewayIntentBits.Guilds ]});
 
 		const listenersDir = join(__dirname, "..", "discord", "listeners");
 		for (const file of await readdir(listenersDir)) {
@@ -44,7 +39,10 @@ export class DiscordClient {
 		}
 
 		const now = Date.now();
-		this.client.once(Events.ClientReady, client => DiscordClient.logger.log(`Authenticated as ${ chalk.cyan(client.user.tag) } ${ chalk.dim(`(${ client.user.id })`) } in ${ chalk.yellow(prettyMilliseconds(Date.now() - now)) }`));
+		this.client.once(Events.ClientReady, client => {
+			DiscordClient.logger.log(`Authenticated as ${ chalk.cyan(client.user.tag) } ${ chalk.dim(`(${ client.user.id })`) } in ${ chalk.yellow(prettyMilliseconds(Date.now() - now)) }`);
+			DiscordClient.logger.log("Invite the bot to your server:", chalk.cyan.underline(`https://discord.com/oauth2/authorize?client_id=${ client.user.id }&scope=bot+applications.commands`));
+		});
 		this.client.on("error", error => this.logger.error("Discord client error:", error));
 		this.client.login(process.env.DISCORD_BOT_TOKEN)
 			.catch(error => {
