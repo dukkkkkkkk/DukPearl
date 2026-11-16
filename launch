@@ -44,6 +44,33 @@ random_port() {
 	done
 }
 
+ram_mb=$(awk '/^MemTotal:/ { print int($2 / 1024) }' /proc/meminfo 2>/dev/null || echo 9999)
+
+# Low-memory mode: on by itself under ~1 GB of RAM (set LAUNCH_LOWMEM=yes/no in .env to force it).
+lowmem=$(get_env LAUNCH_LOWMEM)
+if [ -z "$lowmem" ]; then
+	if [ "$ram_mb" -lt 1100 ]; then lowmem=yes; else lowmem=no; fi
+fi
+
+# Start one bot in this terminal, replacing this script.
+run_bot() {
+	export PATH="$HOME/.bun/bin:$PATH"
+	if [ "$lowmem" = yes ]; then exec bun --smol . --skip-migrations; fi
+	exec bun . --skip-migrations
+}
+
+# Internal: ./launch --bot2 starts the second bot. ./launch runs it for you once everything is ready.
+if [ "${1:-}" = --bot2 ]; then
+	MC_USERNAME=$(get_env BOT2_USERNAME); PROXY_PORT=$(get_env BOT2_PORT)
+	[ -n "$MC_USERNAME" ] && [ -n "$PROXY_PORT" ] || fail "No second bot is set up. Run ./launch --setup"
+	export MC_USERNAME PROXY_PORT MC_PROFILE="$HOME/.minecraft-bot2"
+	v=$(get_env BOT2_HOST); [ -z "$v" ] || export MC_HOST="$v"
+	v=$(get_env BOT2_LOCATION_NAME); [ -z "$v" ] || export STASIS_LOCATION_NAME="$v"
+	printf '\n  Second bot: %s (port %s). If a sign-in code appears here, sign in as %s.\n\n' "$MC_USERNAME" "$PROXY_PORT" "$MC_USERNAME"
+	sleep 5 # let the first bot write config.yml defaults first
+	run_bot
+fi
+
 # ─── First-time setup ────────────────────────────────────────────────────────
 
 if [ "${1:-}" = --setup ] || [ -z "$(get_env LAUNCH_MODE)" ]; then
@@ -75,6 +102,28 @@ if [ "${1:-}" = --setup ] || [ -z "$(get_env LAUNCH_MODE)" ]; then
 		[[ "$port" =~ ^[0-9]+$ ]] && [ "$port" -ge 1024 ] && [ "$port" -le 65535 ] && break
 		echo "  Pick a number between 1024 and 65535."; port=""
 	done
+
+	# With enough memory, offer a second bot on its own account and port.
+	user2=$(get_env BOT2_USERNAME); port2=$(get_env BOT2_PORT)
+	if [ "$mode" = linux ] && [ "$ram_mb" -ge 900 ]; then
+		ask second "This machine has ${ram_mb} MB of RAM, enough for two bots. Run a second bot? (yes/no)" "$([ -n "$user2" ] && echo yes || echo no)"
+		case "$second" in
+			[yY]*)
+				while :; do
+					ask user2 "In-game name of the second bot's Microsoft account" "$user2"
+					[[ "$user2" =~ ^[A-Za-z0-9_]{3,16}$ ]] && [ "${user2,,}" != "${mc_user,,}" ] && break
+					echo "  Enter a valid Minecraft name that is different from the first bot."; user2=""
+				done
+				while :; do
+					ask port2 "Port for the second bot (Enter for a random one)" "$port2"
+					[ -n "$port2" ] || port2=$(random_port)
+					[[ "$port2" =~ ^[0-9]+$ ]] && [ "$port2" -ge 1024 ] && [ "$port2" -le 65535 ] && [ "$port2" != "$port" ] && break
+					echo "  Pick a number between 1024 and 65535, different from the first bot's port."; port2=""
+				done ;;
+			*) user2=""; port2="" ;;
+		esac
+	fi
+
 	echo "Discord (optional): create a bot at https://discord.com/developers/applications and copy its token."
 	ask discord "Discord bot token (Enter to $([ -n "$(get_env DISCORD_BOT_TOKEN)" ] && echo keep the current one || echo skip))"
 	ask webhook "Discord webhook URL for pearl and alert notifications (Enter to $([ -n "$(get_env DISCORD_WEBHOOK_URL)" ] && echo keep the current one || echo skip))"
@@ -85,6 +134,8 @@ if [ "${1:-}" = --setup ] || [ -z "$(get_env LAUNCH_MODE)" ]; then
 	set_env MC_USERNAME "$mc_user"
 	set_env MC_VERSION "$mc_version"
 	set_env PROXY_PORT "$port"
+	set_env BOT2_USERNAME "$user2"
+	set_env BOT2_PORT "$port2"
 	[ -z "$discord" ] || set_env DISCORD_BOT_TOKEN "$discord"
 	[ -z "$webhook" ] || set_env DISCORD_WEBHOOK_URL "$webhook"
 	say "Saved to .env (edit that file, or run ./launch --setup, to change it)"
@@ -92,6 +143,8 @@ fi
 
 mode=$(get_env LAUNCH_MODE)
 port=$(get_env PROXY_PORT); port=${port:-25577}
+user2=$(get_env BOT2_USERNAME); port2=$(get_env BOT2_PORT)
+[ "$mode" = linux ] && [ -n "$port2" ] || user2=""
 
 # ─── Where to connect ────────────────────────────────────────────────────────
 
@@ -101,13 +154,17 @@ if [ "$(get_env LAUNCH_VPS)" = yes ]; then
 	address=${address:-YOUR_SERVER_IP}
 	if command -v ufw >/dev/null 2>&1 && root ufw status 2>/dev/null | grep -q "Status: active"; then
 		root ufw allow "$port/tcp" >/dev/null && say "Opened port $port in the firewall (ufw)"
+		[ -z "$user2" ] || { root ufw allow "$port2/tcp" >/dev/null && say "Opened port $port2 in the firewall (ufw)"; }
 	fi
 fi
 
 banner() {
 	cat <<MSG
 
-  DukPearl is starting. Join in Minecraft at:   $address:$port
+  DukPearl is starting. Join in Minecraft at:   $address:$port   ($(get_env MC_USERNAME))
+MSG
+	[ -z "$user2" ] || echo "                                Second bot:   $address:$port2   ($user2)"
+	cat <<MSG
 
   First run only: a Microsoft sign-in link and code appear below. Open the
   link, enter the code, and sign in as the bot account.
@@ -119,7 +176,6 @@ MSG
 # ─── Docker mode ─────────────────────────────────────────────────────────────
 
 if [ "$mode" = docker ]; then
-	ram_mb=$(awk '/^MemTotal:/ { print int($2 / 1024) }' /proc/meminfo 2>/dev/null || echo 9999)
 	[ "$ram_mb" -ge 1100 ] || echo "Note: this machine has under 1 GB of RAM. Docker mode needs more; linux mode fits (./launch --setup)."
 	command -v docker >/dev/null 2>&1 || fail "Docker is not installed. Get it with:  curl -fsSL https://get.docker.com | sh"
 	docker compose version >/dev/null 2>&1 || fail "Docker Compose v2 is missing. Update Docker."
@@ -130,13 +186,6 @@ fi
 # ─── Linux mode ──────────────────────────────────────────────────────────────
 
 export PATH="$HOME/.bun/bin:$PATH"
-
-# Low-memory mode: on by itself under ~1 GB of RAM (set LAUNCH_LOWMEM=yes/no in .env to force it).
-lowmem=$(get_env LAUNCH_LOWMEM)
-if [ -z "$lowmem" ]; then
-	ram_mb=$(awk '/^MemTotal:/ { print int($2 / 1024) }' /proc/meminfo 2>/dev/null || echo 9999)
-	if [ "$ram_mb" -lt 1100 ]; then lowmem=yes; else lowmem=no; fi
-fi
 
 # With little RAM, installing and starting need swap as a safety net. Add 1 GB once.
 if [ "$lowmem" = yes ] && [ "$(awk '/^SwapTotal:/ { print $2 }' /proc/meminfo)" = 0 ]; then
@@ -226,9 +275,22 @@ say "Checking the database..."
 quiet bunx prisma migrate deploy
 
 banner
-if [ "$lowmem" = yes ]; then
-	echo "  Low-memory mode is on (view distance $(get_env MC_VIEW_DISTANCE), small database, compact runtime)."
-	echo
-	exec bun --smol . --skip-migrations
+[ "$lowmem" != yes ] || printf '  Low-memory mode is on (view distance %s, small database, compact runtime).\n\n' "$(get_env MC_VIEW_DISTANCE)"
+
+if [ -n "$user2" ]; then
+	if [ -n "${TMUX:-}" ]; then
+		# Inside tmux: the second bot gets its own pane below this one.
+		tmux split-window -v -c "$PWD" "./launch --bot2; echo; read -r -p 'Second bot stopped. Press Enter to close this pane.'"
+		tmux last-pane
+		echo "  The second bot ($user2) runs in the pane below. Switch panes with Ctrl+B then an arrow key."
+		echo
+	else
+		# No tmux: both bots share this terminal, each line tagged with the bot's name.
+		name1=$(get_env MC_USERNAME)
+		trap 'trap - EXIT INT TERM; kill 0' EXIT INT TERM
+		./launch --bot2 2>&1 | sed -u "s/^/[$user2] /" &
+		(run_bot) 2>&1 | sed -u "s/^/[$name1] /"
+		exit
+	fi
 fi
-exec bun . --skip-migrations
+run_bot

@@ -34,6 +34,7 @@ The first run asks a few questions — press Enter to take the default:
 | linux or docker | `linux` runs directly on the machine; `docker` runs everything in containers |
 | Server, bot name, version | Where the bot joins and which account it plays on |
 | Port | Enter picks a random free one |
+| Second bot | Only asked with about 1 GB of RAM or more, in linux mode — see [Two bots](#two-bots) |
 
 It then installs what is missing (Bun, PostgreSQL, Redis — it uses `sudo` if you are not root), and starts the bot.
 
@@ -49,6 +50,14 @@ Then join the address it printed (`your-ip:port`) in Minecraft with the bot acco
 | Start again | `./launch` |
 | Change your answers | `./launch --setup`, or edit `.env` |
 | Update | `git pull`, then `./launch` |
+
+### Two bots
+
+On a machine with about 1 GB of RAM or more, setup (in linux mode) asks whether to run a second bot. Say `yes` and give it its own Minecraft account and port (Enter for a random one). Both bots join the same server and share the database, Discord bot and settings.
+
+`./launch` then starts both. Inside tmux the second bot gets its own pane below the first: switch panes with `Ctrl+B` then an arrow key, and stop each one with `Ctrl+C` in its pane. Each pane prints its own Microsoft sign-in code the first time, so sign in to each with the matching account. Outside tmux both share the terminal, with each line tagged by bot name.
+
+To add or remove the second bot later, run `./launch --setup`. For a different server or site name on the second bot, set `BOT2_HOST` or `BOT2_LOCATION_NAME` in `.env`.
 
 ### Small servers (512 MB)
 
