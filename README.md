@@ -6,41 +6,16 @@ DukPearl keeps a bot account online at your stasis chambers and pulls players' p
 
 DukPearl is a fork of [StasisProxy](https://github.com/StasisCo/StasisProxy) by StasisCo, with a simpler setup.
 
-## Quick start on a VPS (no Docker)
+## Quick start
 
-For a Debian or Ubuntu server. You need root access and a Minecraft (Microsoft) account for the bot.
-
-```bash
-git clone https://github.com/dukkkkkkkk/DukPearl.git /opt/dukpearl
-```
-
-```bash
-cd /opt/dukpearl
-```
-
-```bash
-sudo ./install.sh
-```
-
-The installer sets up Bun, PostgreSQL and Redis, asks for the server and the bot's in-game name, and runs DukPearl as a system service that starts on boot. Then it shows the log.
-
-**First run only:** the log prints a Microsoft link and a code. Open the link, enter the code, and sign in as the bot account. The login is remembered after that.
-
-Then add a server in Minecraft with the address `<your server's IP>:25577` and join with the bot account. If the VPS has a firewall, open that port (`ufw allow 25577/tcp`).
-
-| What | Command |
-| --- | --- |
-| Watch the log | `journalctl -u dukpearl -f` |
-| Restart (after editing `.env` or `config.yml`) | `systemctl restart dukpearl` |
-| Stop | `systemctl stop dukpearl` |
-| Update | `git pull && sudo ./install.sh` |
-
-## Quick start with Docker
-
-If you would rather keep everything in containers, you only need [Docker](https://docs.docker.com/get-docker/); Postgres and Redis are started for you.
+For a Debian or Ubuntu machine or VPS. You need a Minecraft (Microsoft) account for the bot.
 
 ```bash
 git clone https://github.com/dukkkkkkkk/DukPearl.git
+```
+
+```bash
+tmux
 ```
 
 ```bash
@@ -48,44 +23,43 @@ cd DukPearl
 ```
 
 ```bash
-./setup.sh
+./launch
 ```
 
-Sign in with the code from the log as above, then join `localhost:25577`.
+The first run asks a few questions — press Enter to take the default:
 
-### Windows, or without the script
-
-Copy `.env.example` to `.env`, set `MC_HOST` and `MC_USERNAME` in it, then run:
-
-```bash
-docker compose up -d --build
-```
-
-```bash
-docker compose logs -f dukpearl
-```
-
-### Docker commands
-
-| What | Command |
+| Question | Answer |
 | --- | --- |
-| Watch the log | `docker compose logs -f dukpearl` |
-| Stop | `docker compose down` |
-| Start again | `docker compose up -d` |
-| Update | `git pull && docker compose up -d --build` |
-| Restart after editing `config.yml` | `docker compose restart dukpearl` |
-| Wipe everything (pearls, logins) | `docker compose down -v` |
+| Is this a VPS? | `yes` shows your server's public address and opens the port in `ufw` if it is on |
+| linux or docker | `linux` runs directly on the machine; `docker` runs everything in containers |
+| Server, bot name, version | Where the bot joins and which account it plays on |
+| Port | Enter picks a random free one |
+
+It then installs what is missing (Bun, PostgreSQL, Redis — it uses `sudo` if you are not root), and starts the bot.
+
+**First run only:** a Microsoft link and a code are printed. Open the link, enter the code, and sign in as the bot account. The login is remembered after that.
+
+Then join the address it printed (`your-ip:port`) in Minecraft with the bot account.
+
+| What | How |
+| --- | --- |
+| Leave it running | Detach from tmux: `Ctrl+B` then `D` |
+| Come back to it | `tmux attach` |
+| Stop | `Ctrl+C` |
+| Start again | `./launch` |
+| Change your answers | `./launch --setup`, or edit `.env` |
+| Update | `git pull`, then `./launch` |
 
 ## Settings
 
-Everything is in `.env` — see [`.env.example`](./.env.example) for the full list with explanations. After changing it, restart: `systemctl restart dukpearl`, or `docker compose up -d` with Docker.
+Everything is in `.env` — see [`.env.example`](./.env.example) for the full list with explanations. After changing it, stop DukPearl and run `./launch` again.
 
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `MC_HOST` | *required* | Server the bot joins, `host` or `host:port` |
 | `MC_USERNAME` | *required* | In-game name of the bot's account |
 | `MC_VERSION` | `1.20.1` | Minecraft protocol version |
-| `PROXY_PORT` | `25577` | Port you connect your own client to |
+| `PROXY_PORT` | set by `./launch` | Port you connect your own client to |
 | `DISCORD_BOT_TOKEN` | off | Enables the Discord `/load` and `/connect` commands |
 | `DISCORD_WEBHOOK_URL` | off | Posts pearl and alert notifications to a channel |
 | `STASIS_LOCATION_NAME` | `base` | Names players use in chat, e.g. `!load base` |
@@ -98,17 +72,15 @@ Bot behaviour (auto-eat, auto-totem, kill aura, …) lives in [`config.yml`](./c
 ## Using it
 
 - **Players** throw a pearl into a stasis chamber near the bot; it is registered to them automatically. They whisper or say `!load` to be pulled back, and `!pearls` to see how many they have.
-- **You** join `localhost:25577` with the bot account to control it. While connected, `/whitelist add <name>` lets another account join the proxy too, and `/stasis` and `/hologram` manage chambers and holograms.
+- **You** join the address `./launch` printed with the bot account to control it. While connected, `/whitelist add <name>` lets another account join the proxy too, and `/stasis` and `/hologram` manage chambers and holograms.
 - **Discord**: set `DISCORD_BOT_TOKEN`, invite the bot to your server, and players can link their account with `/connect` and use `/load`.
 
 ## Troubleshooting
 
-- **`env file .env not found`** (Docker) — run `./setup.sh`, or copy `.env.example` to `.env`.
-- **Installer says the service user cannot read the folder** — folders under `/root` are private; move the folder to `/opt/dukpearl` and run `sudo ./install.sh` again.
-- **No sign-in code in the log** — the login is already saved. To sign in as a different account, delete the saved login and restart: `rm -rf /var/lib/dukpearl/minecraft/*` on a VPS install, or `docker compose down -v` with Docker (that also deletes stored pearls).
+- **No sign-in code appears** — the login is already saved. To sign in as a different account, delete the saved login (`rm -rf ~/.minecraft/nmp-cache` in linux mode, `docker compose down -v` in docker mode — that one also deletes stored pearls) and launch again.
 - **"You are not whitelisted on this proxy"** — join with the bot's own account, or have it run `/whitelist add <name>`.
-- **Can't connect to `localhost:25577`** — check the service is running (`systemctl status dukpearl` or `docker compose ps`), the port is open in your firewall, and that the bot has finished joining the server (on 2b2t it waits in the queue first).
-- **Port already in use** — set `PROXY_PORT` in `.env` to another port.
+- **Can't connect** — check DukPearl is still running (`tmux attach`), that your VPS provider's firewall allows the port, and that the bot has finished joining the server (on 2b2t it waits in the queue first).
+- **Port already in use** — run `./launch --setup` and press Enter at the port question for a new random one.
 
 ## Development
 

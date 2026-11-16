@@ -1,9 +1,4 @@
-# DukPearl — one command brings up the proxy, Postgres and Redis:
-#
-#   ./setup.sh                 (guided), or
-#   cp .env.example .env       (edit it), then: docker compose up -d --build
-#
-# All settings live in .env — you should not need to edit this file.
+# Used by ./launch in docker mode. All settings live in .env.
 
 services:
 

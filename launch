@@ -1,0 +1,181 @@
+#!/usr/bin/env bash
+# DukPearl launcher. Run it inside tmux:   ./launch
+# The first run asks a few questions and installs what is missing; every run
+# after that just starts the bot. Use  ./launch --setup  to answer again.
+set -euo pipefail
+cd "$(dirname "$0")"
+
+say()   { printf '\033[1;36m==>\033[0m %s\n' "$*"; }
+fail()  { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
+# Run a command silently; show its output only if it fails.
+quiet() { local out; out=$("$@" 2>&1) || { printf '%s\n' "$out" >&2; fail "That step failed (see above)."; }; }
+root()  { if [ "$(id -u)" = 0 ]; then "$@"; else sudo "$@"; fi; }
+
+ask() {
+	local var=$1 prompt=$2 default=${3-} answer
+	if [ -n "$default" ]; then read -r -p "$prompt [$default]: " answer || true
+	else read -r -p "$prompt: " answer || true
+	fi
+	printf -v "$var" '%s' "${answer:-$default}"
+}
+
+# Set KEY=value in .env, replacing an existing (or commented-out) line.
+set_env() {
+	local key=$1 value=$2 tmp
+	tmp=$(mktemp)
+	awk -v k="$key" -v v="$value" '
+		!done && $0 ~ "^#?[[:space:]]*" k "=" { print k "=" v; done = 1; next }
+		{ print }
+		END { if (!done) print k "=" v }
+	' .env > "$tmp"
+	cat "$tmp" > .env
+	rm -f "$tmp"
+}
+
+get_env() { grep -E "^$1=" .env 2>/dev/null | tail -1 | cut -d= -f2- || true; }
+
+port_free() { ! (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null; }
+
+random_port() {
+	local p
+	while :; do
+		p=$(( 20000 + (RANDOM * 32768 + RANDOM) % 40000 ))
+		if port_free "$p"; then echo "$p"; return; fi
+	done
+}
+
+# ─── First-time setup ────────────────────────────────────────────────────────
+
+if [ "${1:-}" = --setup ] || [ -z "$(get_env LAUNCH_MODE)" ]; then
+	echo "DukPearl setup — press Enter to accept the [default]."
+	[ -f .env ] || cp .env.example .env
+	chmod 600 .env
+
+	ask vps "Is this a VPS / remote server? (yes/no)" "$(get_env LAUNCH_VPS || true)"
+	case "$vps" in [yY]*) vps=yes ;; *) vps=no ;; esac
+
+	mode=""
+	until [ "$mode" = linux ] || [ "$mode" = docker ]; do
+		ask mode "Run with: linux (directly on this machine) or docker" "linux"
+		mode=$(printf '%s' "$mode" | tr '[:upper:]' '[:lower:]')
+	done
+
+	ask mc_host "Minecraft server to join (host or host:port)" "$(v=$(get_env MC_HOST); echo "${v:-2b2t.org}")"
+	mc_user=$(get_env MC_USERNAME); [ "$mc_user" != YourBotAccount ] || mc_user=""
+	while :; do
+		ask mc_user "In-game name of the bot's Microsoft account" "$mc_user"
+		[[ "$mc_user" =~ ^[A-Za-z0-9_]{3,16}$ ]] && break
+		echo "  That is not a valid Minecraft name (3-16 letters, digits or _)."; mc_user=""
+	done
+	ask mc_version "Minecraft version" "$(v=$(get_env MC_VERSION); echo "${v:-1.20.1}")"
+
+	while :; do
+		ask port "Port you will connect to (Enter for a random one)" "$(get_env PROXY_PORT)"
+		[ -n "$port" ] || port=$(random_port)
+		[[ "$port" =~ ^[0-9]+$ ]] && [ "$port" -ge 1024 ] && [ "$port" -le 65535 ] && break
+		echo "  Pick a number between 1024 and 65535."; port=""
+	done
+	ask discord "Discord bot token (optional, Enter to skip)"
+
+	set_env LAUNCH_VPS "$vps"
+	set_env LAUNCH_MODE "$mode"
+	set_env MC_HOST "$mc_host"
+	set_env MC_USERNAME "$mc_user"
+	set_env MC_VERSION "$mc_version"
+	set_env PROXY_PORT "$port"
+	[ -z "$discord" ] || set_env DISCORD_BOT_TOKEN "$discord"
+	say "Saved to .env (edit that file, or run ./launch --setup, to change it)"
+fi
+
+mode=$(get_env LAUNCH_MODE)
+port=$(get_env PROXY_PORT); port=${port:-25577}
+
+# ─── Where to connect ────────────────────────────────────────────────────────
+
+address=localhost
+if [ "$(get_env LAUNCH_VPS)" = yes ]; then
+	address=$(curl -fsS --max-time 5 https://api.ipify.org 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}')
+	address=${address:-YOUR_SERVER_IP}
+	if command -v ufw >/dev/null 2>&1 && root ufw status 2>/dev/null | grep -q "Status: active"; then
+		root ufw allow "$port/tcp" >/dev/null && say "Opened port $port in the firewall (ufw)"
+	fi
+fi
+
+banner() {
+	cat <<MSG
+
+  DukPearl is starting. Join in Minecraft at:   $address:$port
+
+  First run only: a Microsoft sign-in link and code appear below. Open the
+  link, enter the code, and sign in as the bot account.
+  Ctrl+C stops DukPearl. Detach from tmux with Ctrl+B then D to leave it running.
+
+MSG
+}
+
+# ─── Docker mode ─────────────────────────────────────────────────────────────
+
+if [ "$mode" = docker ]; then
+	command -v docker >/dev/null 2>&1 || fail "Docker is not installed. Get it with:  curl -fsSL https://get.docker.com | sh"
+	docker compose version >/dev/null 2>&1 || fail "Docker Compose v2 is missing. Update Docker."
+	banner
+	exec docker compose up --build --attach dukpearl
+fi
+
+# ─── Linux mode ──────────────────────────────────────────────────────────────
+
+export PATH="$HOME/.bun/bin:$PATH"
+
+missing=()
+command -v psql >/dev/null 2>&1 || missing+=(postgresql)
+command -v redis-server >/dev/null 2>&1 || missing+=(redis-server)
+command -v git >/dev/null 2>&1 || missing+=(git)
+command -v curl >/dev/null 2>&1 || missing+=(curl ca-certificates)
+command -v unzip >/dev/null 2>&1 || missing+=(unzip)
+if [ ${#missing[@]} -gt 0 ]; then
+	command -v apt-get >/dev/null 2>&1 || fail "Missing: ${missing[*]}. Install them, or use Docker (./launch --setup)."
+	say "Installing ${missing[*]}..."
+	quiet root env DEBIAN_FRONTEND=noninteractive apt-get update -qq
+	quiet root env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${missing[@]}"
+fi
+
+if ! command -v bun >/dev/null 2>&1; then
+	say "Installing Bun..."
+	curl -fsSL https://bun.sh/install | bash >/dev/null 2>&1 || fail "Could not install Bun. See https://bun.sh/docs/installation"
+fi
+
+# Start a system service whether or not this machine uses systemd.
+start_service() {
+	if [ -d /run/systemd/system ]; then root systemctl enable --now "$1" >/dev/null 2>&1 || true
+	else root service "$1" start >/dev/null 2>&1 || true
+	fi
+}
+pg_isready -q 2>/dev/null || start_service postgresql
+(exec 3<>/dev/tcp/127.0.0.1/6379) 2>/dev/null || start_service redis-server
+for _ in 1 2 3 4 5 6 7 8 9 10; do pg_isready -q 2>/dev/null && break; sleep 1; done
+pg_isready -q 2>/dev/null || fail "PostgreSQL is not running. Try:  sudo systemctl start postgresql"
+
+if [ -z "$(get_env DATABASE_URL)" ]; then
+	say "Creating the database..."
+	db_pass=$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')
+	pg() { (cd / && if [ "$(id -u)" = 0 ]; then runuser -u postgres -- psql -v ON_ERROR_STOP=1 -qtAc "$1"; else sudo -u postgres psql -v ON_ERROR_STOP=1 -qtAc "$1"; fi); }
+	if [ "$(pg "SELECT 1 FROM pg_roles WHERE rolname='dukpearl'")" = 1 ]; then
+		pg "ALTER ROLE dukpearl LOGIN PASSWORD '$db_pass'"
+	else
+		pg "CREATE ROLE dukpearl LOGIN PASSWORD '$db_pass'"
+	fi
+	[ "$(pg "SELECT 1 FROM pg_database WHERE datname='dukpearl'")" = 1 ] || pg "CREATE DATABASE dukpearl OWNER dukpearl"
+	set_env DATABASE_URL "postgresql://dukpearl:$db_pass@127.0.0.1:5432/dukpearl"
+fi
+[ -n "$(get_env REDIS_URL)" ] || set_env REDIS_URL "redis://127.0.0.1:6379"
+
+# Install dependencies on first run, and again whenever an update changes them.
+if [ ! -f node_modules/.launch-stamp ] || [ bun.lock -nt node_modules/.launch-stamp ] || [ ! -d src/generated ]; then
+	say "Installing dependencies (this can take a minute)..."
+	quiet bun install --frozen-lockfile
+	quiet bun run generate
+	touch node_modules/.launch-stamp
+fi
+
+banner
+exec bun start
