@@ -6,9 +6,38 @@ DukPearl keeps a bot account online at your stasis chambers and pulls players' p
 
 DukPearl is a fork of [StasisProxy](https://github.com/StasisCo/StasisProxy) by StasisCo, with a simpler setup.
 
-## Quick start
+## Quick start on a VPS (no Docker)
 
-You need [Docker](https://docs.docker.com/get-docker/) and a Minecraft (Microsoft) account for the bot. That's it — Postgres and Redis are started for you.
+For a Debian or Ubuntu server. You need root access and a Minecraft (Microsoft) account for the bot.
+
+```bash
+git clone https://github.com/dukkkkkkkk/DukPearl.git /opt/dukpearl
+```
+
+```bash
+cd /opt/dukpearl
+```
+
+```bash
+sudo ./install.sh
+```
+
+The installer sets up Bun, PostgreSQL and Redis, asks for the server and the bot's in-game name, and runs DukPearl as a system service that starts on boot. Then it shows the log.
+
+**First run only:** the log prints a Microsoft link and a code. Open the link, enter the code, and sign in as the bot account. The login is remembered after that.
+
+Then add a server in Minecraft with the address `<your server's IP>:25577` and join with the bot account. If the VPS has a firewall, open that port (`ufw allow 25577/tcp`).
+
+| What | Command |
+| --- | --- |
+| Watch the log | `journalctl -u dukpearl -f` |
+| Restart (after editing `.env` or `config.yml`) | `systemctl restart dukpearl` |
+| Stop | `systemctl stop dukpearl` |
+| Update | `git pull && sudo ./install.sh` |
+
+## Quick start with Docker
+
+If you would rather keep everything in containers, you only need [Docker](https://docs.docker.com/get-docker/); Postgres and Redis are started for you.
 
 ```bash
 git clone https://github.com/dukkkkkkkk/DukPearl.git
@@ -22,11 +51,7 @@ cd DukPearl
 ./setup.sh
 ```
 
-The script asks for the server and the bot's in-game name, starts everything, and shows the log.
-
-**First run only:** the log prints a Microsoft link and a code. Open the link, enter the code, and sign in as the bot account. The login is remembered after that.
-
-Then add a server in Minecraft with the address `localhost:25577` and join with the bot account.
+Sign in with the code from the log as above, then join `localhost:25577`.
 
 ### Windows, or without the script
 
@@ -40,7 +65,7 @@ docker compose up -d --build
 docker compose logs -f dukpearl
 ```
 
-## Everyday commands
+### Docker commands
 
 | What | Command |
 | --- | --- |
@@ -53,7 +78,7 @@ docker compose logs -f dukpearl
 
 ## Settings
 
-Everything in `.env` — see [`.env.example`](./.env.example) for the full list with explanations. After changing it, run `docker compose up -d`.
+Everything is in `.env` — see [`.env.example`](./.env.example) for the full list with explanations. After changing it, restart: `systemctl restart dukpearl`, or `docker compose up -d` with Docker.
 
 | Variable | Default | What it does |
 | --- | --- | --- |
@@ -78,15 +103,16 @@ Bot behaviour (auto-eat, auto-totem, kill aura, …) lives in [`config.yml`](./c
 
 ## Troubleshooting
 
-- **`env file .env not found`** — run `./setup.sh`, or copy `.env.example` to `.env`.
-- **No sign-in code in the log** — the login is already saved. To sign in as a different account, run `docker compose down -v` (this also deletes stored pearls) and start again.
+- **`env file .env not found`** (Docker) — run `./setup.sh`, or copy `.env.example` to `.env`.
+- **Installer says the service user cannot read the folder** — folders under `/root` are private; move the folder to `/opt/dukpearl` and run `sudo ./install.sh` again.
+- **No sign-in code in the log** — the login is already saved. To sign in as a different account, delete the saved login and restart: `rm -rf /var/lib/dukpearl/minecraft/*` on a VPS install, or `docker compose down -v` with Docker (that also deletes stored pearls).
 - **"You are not whitelisted on this proxy"** — join with the bot's own account, or have it run `/whitelist add <name>`.
-- **Can't connect to `localhost:25577`** — check `docker compose ps` shows `dukpearl` running, and that the bot has finished joining the server (on 2b2t it waits in the queue first).
+- **Can't connect to `localhost:25577`** — check the service is running (`systemctl status dukpearl` or `docker compose ps`), the port is open in your firewall, and that the bot has finished joining the server (on 2b2t it waits in the queue first).
 - **Port already in use** — set `PROXY_PORT` in `.env` to another port.
 
 ## Development
 
-Needs [Bun](https://bun.sh), plus a Postgres and Redis you point `DATABASE_URL` and `REDIS_URL` at.
+Needs [Bun](https://bun.sh), plus a Postgres and Redis you point `DATABASE_URL` and `REDIS_URL` at in `.env`.
 
 ```bash
 bun install && bun run generate
