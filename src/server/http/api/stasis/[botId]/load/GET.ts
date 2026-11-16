@@ -20,7 +20,7 @@ HttpServer.GET("/api/stasis/:botId/load", async function(req, res) {
 
 	// Route to the destination bot's own server channel from its presence heartbeat — this
 	// container may be on a different server, or not connected at all
-	const presence = await redis.get(`stasisproxy:bot:online:${ normalizeUUID(destinationUuid) }`);
+	const presence = await redis.get(`dukpearl:bot:online:${ normalizeUUID(destinationUuid) }`);
 	const host = presence?.host ?? MinecraftClient.host;
 	if (!host) return res.status(503).json({
 		success: false,
@@ -28,7 +28,7 @@ HttpServer.GET("/api/stasis/:botId/load", async function(req, res) {
 	});
 
 	// Request correct peer to load the player
-	await redis.emit(`stasisproxy:cluster:${ host }`, {
+	await redis.emit(`dukpearl:cluster:${ host }`, {
 		type: "request-load",
 		destinationUuid,
 		playerUuid: player.id

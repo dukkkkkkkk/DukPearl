@@ -44,7 +44,7 @@ export class Console {
 				return;
 			}
 
-			this.bot.chat(`> ${ trimmed } | StasisProxy [${ randomBytes(6).toString("hex") }]`);
+			this.bot.chat(`> ${ trimmed } | DukPearl [${ randomBytes(6).toString("hex") }]`);
 			this.rl.prompt();
 		});
 

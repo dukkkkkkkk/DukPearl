@@ -1,46 +1,56 @@
+# DukPearl — one command brings up the proxy, Postgres and Redis:
+#
+#   ./setup.sh                 (guided), or
+#   cp .env.example .env       (edit it), then: docker compose up -d --build
+#
+# All settings live in .env — you should not need to edit this file.
+
 services:
 
-  stasis:
+  dukpearl:
     build: .
-    image: ghcr.io/stasisco/stasisproxy:latest
+    image: dukpearl:local
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     volumes:
+      # Microsoft login tokens — kept so you only sign in once
       - minecraft:/root/.minecraft
-    restart: on-failure
+      # Module settings; edit config.yml and run `docker compose restart dukpearl`
+      - ./config.yml:/app/config.yml
+    restart: unless-stopped
     ports:
-      - "25577:25577"
+      - "${PROXY_PORT:-25577}:25577"
     environment:
-      - DATABASE_URL=postgresql://stasis:stasis@postgres:5432/stasis
-      - MC_HOST
+      - DATABASE_URL=postgresql://dukpearl:dukpearl@postgres:5432/dukpearl
       - MC_PROFILE=/root/.minecraft
-      - MC_USERNAME
-      - MC_VERSION=1.20.1
+      - MC_VERSION=${MC_VERSION:-1.20.1}
       - PROXY_PORT=25577
       - REDIS_URL=redis://redis:6379
     env_file:
       - path: .env
-        required: false
+        required: true
 
   postgres:
     image: postgres:17
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: stasis
-      POSTGRES_PASSWORD: stasis
-      POSTGRES_DB: stasis
+      POSTGRES_USER: dukpearl
+      POSTGRES_PASSWORD: dukpearl
+      POSTGRES_DB: dukpearl
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U stasis" ]
+      test: [ "CMD-SHELL", "pg_isready -U dukpearl" ]
       interval: 5s
       timeout: 3s
       retries: 5
 
   redis:
     image: redis:7
+    restart: unless-stopped
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s

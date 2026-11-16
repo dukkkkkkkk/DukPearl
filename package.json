@@ -1,5 +1,5 @@
 {
-	"name": "stasis-proxy",
+	"name": "dukpearl",
 	"version": "1.2.5",
 	"module": "src/index.ts",
 	"type": "module",
@@ -8,7 +8,7 @@
 		"dev": "bun . --skip-migrations",
 		"lint": "eslint . --fix",
 		"generate": "cross-env DATABASE_URL=\"postgresql://\" prisma generate",
-		"build": "docker build -t stasis-proxy ."
+		"build": "docker build -t dukpearl ."
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",

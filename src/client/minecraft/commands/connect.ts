@@ -22,11 +22,11 @@ export default function(program: Command) {
 			// "Invalid or expired code." on a stale code. 10s TTL is enough
 			// for the linking work; the `:user` key is deleted on success
 			// which prevents re-runs anyway.
-			const lock = await redis.set(`stasisproxy:discord:ignlink:${ code }:lock`, true, "NX", "EX", "10");
+			const lock = await redis.set(`dukpearl:discord:ignlink:${ code }:lock`, true, "NX", "EX", "10");
 			if (lock !== "OK") return;
 
 			// Get the Discord UID associated with the code from Redis
-			const linked = await redis.get(`stasisproxy:discord:ignlink:${ code }:user`);
+			const linked = await redis.get(`dukpearl:discord:ignlink:${ code }:user`);
 			if (!linked) return void MinecraftClient.chat.whisper(player, "Invalid or expired code.");
 
 			const user = await DiscordClient.client.users.fetch(linked.id).catch(() => null);
@@ -61,11 +61,11 @@ export default function(program: Command) {
 			MinecraftClient.chat.whisper(player, "Your account has been connected!");
 
 			// Delete the original interaction message if possible
-			const payload = await redis.get(`stasisproxy:discord:ignlink:${ code }:message`).catch(() => null);
+			const payload = await redis.get(`dukpearl:discord:ignlink:${ code }:message`).catch(() => null);
 			if (payload) await DiscordClient.client.rest.delete(Routes.webhookMessage(payload.applicationId, payload.token, "@original")).catch(() => {});
 
 			// Clean up Redis keys
-			await redis.del(`stasisproxy:discord:ignlink:${ code }:user`, `stasisproxy:discord:ignlink:${ code }:message`);
+			await redis.del(`dukpearl:discord:ignlink:${ code }:user`, `dukpearl:discord:ignlink:${ code }:message`);
 
 		});
 

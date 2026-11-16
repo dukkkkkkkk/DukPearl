@@ -6,33 +6,33 @@ declare namespace Redis {
 
 	interface Schema {
 
-		"stasisproxy:discord:register": true;
+		"dukpearl:discord:register": true;
         
-		[key: `stasisproxy:discord:interaction:${ string }`]: string | true;
+		[key: `dukpearl:discord:interaction:${ string }`]: string | true;
         
-		[key: `stasisproxy:discord:ignlink:${ string }:message`]: { type: "interaction-original", applicationId: string, token: string };
+		[key: `dukpearl:discord:ignlink:${ string }:message`]: { type: "interaction-original", applicationId: string, token: string };
 
-		[key: `stasisproxy:discord:ignlink:${ string }:user`]: { id: string };
+		[key: `dukpearl:discord:ignlink:${ string }:user`]: { id: string };
 
-		[key: `stasisproxy:discord:ignlink:${ string }:lock`]: true;
+		[key: `dukpearl:discord:ignlink:${ string }:lock`]: true;
 
-		[key: `stasisproxy:stasis:pearl:${ number }:owner`]: string;
+		[key: `dukpearl:stasis:pearl:${ number }:owner`]: string;
 
-		[key: `stasisproxy:stasis:claim:${ string }`]: string;
+		[key: `dukpearl:stasis:claim:${ string }`]: string;
 
-		[key: `stasisproxy:queue:${ string }:eta`]: { factor: number, pow: number };
+		[key: `dukpearl:queue:${ string }:eta`]: { factor: number, pow: number };
 
-		[key: `stasisproxy:bot:online:${ string }`]: { host: string };
+		[key: `dukpearl:bot:online:${ string }`]: { host: string };
 
-		[key: `stasisproxy:mcacache:${ string }`]: z.infer<typeof zMojangUser>;
+		[key: `dukpearl:mcacache:${ string }`]: z.infer<typeof zMojangUser>;
 
 	}
 
 	interface Subscriptions {
 
-		[key: `stasisproxy:cluster:${ string }`]: ClusterMessage;
+		[key: `dukpearl:cluster:${ string }`]: ClusterMessage;
 
-		[key: `stasisproxy:stasis:status:${ string }`]: "arrived" | "failed" | "queued" | "succeeded" | "timed-out";
+		[key: `dukpearl:stasis:status:${ string }`]: "arrived" | "failed" | "queued" | "succeeded" | "timed-out";
 
 	}
 
@@ -49,7 +49,7 @@ declare namespace Redis {
 			type: "request-load",
 			playerUuid: string,
 			destinationUuid: string,
-			statusKey?: `stasisproxy:stasis:status:${ string }`,
+			statusKey?: `dukpearl:stasis:status:${ string }`,
 			notify?: boolean,
 		}
 		| {

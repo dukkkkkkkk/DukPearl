@@ -90,12 +90,12 @@ export class Pearl extends EventEmitter<{
 		if (owner) {
 			this.ownerId = owner.uuid;
 			this.emit("owner", this.ownerId);
-			redis.set(`stasisproxy:stasis:pearl:${ packet.entityId }:owner`, this.ownerId);
+			redis.set(`dukpearl:stasis:pearl:${ packet.entityId }:owner`, this.ownerId);
 			return;
 		}
 
 		// Check redis for owner if not found in currently loaded players
-		redis.get(`stasisproxy:stasis:pearl:${ packet.entityId }:owner`).then(data => {
+		redis.get(`dukpearl:stasis:pearl:${ packet.entityId }:owner`).then(data => {
 
 			// If owner data is found in redis, associate it
 			if (typeof data === "string") {
@@ -109,7 +109,7 @@ export class Pearl extends EventEmitter<{
 				if (!resolved || !resolved.ownerId) throw new Error("Failed to resolve owner from suspended pearl");
 				this.ownerId = resolved.ownerId;
 				this.emit("owner", this.ownerId);
-				redis.set(`stasisproxy:stasis:pearl:${ entity.id }:owner`, this.ownerId);
+				redis.set(`dukpearl:stasis:pearl:${ entity.id }:owner`, this.ownerId);
 			}).catch(e => {
 				this.emit("owner-failed");
 			});

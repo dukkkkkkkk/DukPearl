@@ -107,7 +107,7 @@ export default function(program: Command) {
 						if (pearl.ownerId === resolved.uuid) continue;
 						pearl.ownerId = resolved.uuid;
 						pearl.emit("owner", resolved.uuid);
-						void redis.set(`stasisproxy:stasis:pearl:${ pearl.entity.id }:owner`, resolved.uuid);
+						void redis.set(`dukpearl:stasis:pearl:${ pearl.entity.id }:owner`, resolved.uuid);
 					}
 
 					return ClientCommands.reply(`§3Saved stasis for §b${ resolved.username }§3.`);

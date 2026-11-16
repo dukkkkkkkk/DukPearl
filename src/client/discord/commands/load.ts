@@ -106,7 +106,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 	// interaction claim, including one that is queueing or reconnecting and sees no peers at all.
 	const online = new Map<string, string>();
 	await Promise.all(Array.from(new Set(pearls.flatMap(pearl => pearl.managers.map(manager => manager.id))), async managerId => {
-		const presence = await redis.get(`stasisproxy:bot:online:${ managerId }`);
+		const presence = await redis.get(`dukpearl:bot:online:${ managerId }`);
 		if (presence) online.set(managerId, presence.host);
 	}));
 
@@ -233,7 +233,7 @@ async function loadAndLifeCycle(interaction: ButtonInteraction<CacheType>, bot: 
 
 	// Re-check the bot's presence at press time — it may have gone offline since the pearls were
 	// listed, and its heartbeat carries the server host the load request must be routed to.
-	const presence = await redis.get(`stasisproxy:bot:online:${ bot.id }`);
+	const presence = await redis.get(`dukpearl:bot:online:${ bot.id }`);
 	if (!presence) {
 		embed.setColor(0xf43f5e);
 		embed.setTitle("Bot Offline");
@@ -252,7 +252,7 @@ async function loadAndLifeCycle(interaction: ButtonInteraction<CacheType>, bot: 
 	const expire = 75 * 1000;
 
 	// Subscribe to status updates BEFORE emitting the request to avoid missing early statuses
-	await redis.on(`stasisproxy:stasis:status:${ id }`, async data => {
+	await redis.on(`dukpearl:stasis:status:${ id }`, async data => {
 		switch (data) {
 
 			case "arrived":
@@ -267,7 +267,7 @@ async function loadAndLifeCycle(interaction: ButtonInteraction<CacheType>, bot: 
 				embed.setTitle("Stasis Loaded");
 				embed.setDescription(`**${ bot.username }** has successfully loaded your stasis.`);
 				await interaction.editReply({ embeds: [ embed ]});
-				redis.off(`stasisproxy:stasis:status:${ id }`);
+				redis.off(`dukpearl:stasis:status:${ id }`);
 				break;
 
 			case "failed":
@@ -275,7 +275,7 @@ async function loadAndLifeCycle(interaction: ButtonInteraction<CacheType>, bot: 
 				embed.setTitle("Stasis Failed");
 				embed.setDescription(`**${ bot.username }** failed to load your stasis, please try again...`);
 				await interaction.editReply({ embeds: [ embed ]});
-				redis.off(`stasisproxy:stasis:status:${ id }`);
+				redis.off(`dukpearl:stasis:status:${ id }`);
 				break;
 
 			case "timed-out":
@@ -283,7 +283,7 @@ async function loadAndLifeCycle(interaction: ButtonInteraction<CacheType>, bot: 
 				embed.setTitle("Timed Out Waiting for Login");
 				embed.setDescription(`**${ account.username }** didn't log in within the time limit, please try again...`);
 				await interaction.editReply({ embeds: [ embed ]});
-				redis.off(`stasisproxy:stasis:status:${ id }`);
+				redis.off(`dukpearl:stasis:status:${ id }`);
 				break;
 
 		}
@@ -292,11 +292,11 @@ async function loadAndLifeCycle(interaction: ButtonInteraction<CacheType>, bot: 
 
 	// Now emit the load request — the subscription above is already active. Route to the manager
 	// bot's own server channel, not this container's, which may not even be connected.
-	await redis.emit(`stasisproxy:cluster:${ presence.host }`, {
+	await redis.emit(`dukpearl:cluster:${ presence.host }`, {
 		type: "request-load",
 		playerUuid: account.id,
 		destinationUuid: bot.id,
-		statusKey: `stasisproxy:stasis:status:${ id }`
+		statusKey: `dukpearl:stasis:status:${ id }`
 	});
 
 }

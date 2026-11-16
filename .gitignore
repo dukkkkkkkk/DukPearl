@@ -16,7 +16,9 @@ _.log
 report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # dotenv environment variable files
-*.env*
+.env
+.env.*
+!.env.example
 
 # caches
 .eslintcache
@@ -30,5 +32,3 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .DS_Store
 src/generated/
 
-# Config file
-config.yml

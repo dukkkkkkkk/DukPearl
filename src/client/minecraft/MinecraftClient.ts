@@ -39,7 +39,17 @@ const PRESENCE_TTL_S = "30";
 export class MinecraftClient {
 
 	/** User agent string to identify the client version */
-	public static readonly userAgent = `${ name }/${ version }+${ execSync("git rev-parse HEAD").toString().trim() }`;
+	public static readonly userAgent = `${ name }/${ version }+${ MinecraftClient.revision() }`;
+
+	/** The git commit this build came from, or "unknown" when running outside a git checkout (e.g. a ZIP download). */
+	private static revision() {
+		if (process.env.GIT_SHA) return process.env.GIT_SHA;
+		try {
+			return execSync("git rev-parse HEAD", { stdio: [ "ignore", "pipe", "ignore" ]}).toString().trim();
+		} catch {
+			return "unknown";
+		}
+	}
 
 	/** Logger instance */
 	public static logger = new Logger(chalk.cyan("CLIENT"));
@@ -99,7 +109,7 @@ export class MinecraftClient {
 	private static exiting = false;
 
 	/** The presence key currently held in Redis, so it can be deleted promptly on disconnect rather than waiting for the TTL. */
-	private static presenceKey?: `stasisproxy:bot:online:${ string }`;
+	private static presenceKey?: `dukpearl:bot:online:${ string }`;
 
 	/**
 	 * Advertise this bot as online cluster-wide. Any container can win the Discord interaction
@@ -111,7 +121,7 @@ export class MinecraftClient {
 	private static async presenceTick() {
 		const id = this.session?.selectedProfile.id;
 		if (!id || !this.host || !this.bot?.player || this.queue?.isQueued !== false) return this.clearPresence();
-		this.presenceKey = `stasisproxy:bot:online:${ normalizeUUID(id) }`;
+		this.presenceKey = `dukpearl:bot:online:${ normalizeUUID(id) }`;
 		await redis.set(this.presenceKey, { host: this.host }, "EX", PRESENCE_TTL_S).catch(() => undefined);
 	}
 
@@ -293,7 +303,7 @@ export class MinecraftClient {
 			await prisma.bot.upsert({ where: { id }, update: {}, create: { player: { connect: { id }}}});
 
 			// Subscribe to the cluster channel for this bot to receive peer requests (only once)
-			const channel = `stasisproxy:cluster:${ this.host }` as const;
+			const channel = `dukpearl:cluster:${ this.host }` as const;
 			if (this.redisChannel !== channel) {
 				if (this.redisChannel) await redis.off(this.redisChannel);
 				this.redisChannel = channel;

@@ -1,58 +1,103 @@
-<div align="center">
+# DukPearl
 
-<img alt="Stasis Proxy" src="https://i.ibb.co/wTc8fc1/Frame-39.png" width="640" />
+**A self-hosted Minecraft stasis chamber proxy.**
 
-### A self-hosted Minecraft stasis chamber proxy
+DukPearl keeps a bot account online at your stasis chambers and pulls players' pearls on request, from in-game chat (`!load`) or Discord. You can also join through it with your own client to play as the bot. It comes with in-game holograms, a Discord bot, multi-bot clustering over Redis, and pearl storage in Postgres.
 
-A clusterable Minecraft proxy for stasis chambers: in‑game holograms, Discord and IRC bridges, peer discovery over Redis Pub/Sub, and persistent pearl storage in Postgres.
+DukPearl is a fork of [StasisProxy](https://github.com/StasisCo/StasisProxy) by StasisCo, with a simpler setup.
 
-[![Continuous Deployment](https://github.com/StasisCo/StasisProxy/actions/workflows/cd.yml/badge.svg)](https://github.com/StasisCo/StasisProxy/actions/workflows/cd.yml)
-[![Continuous Integration](https://github.com/StasisCo/StasisProxy/actions/workflows/ci.yml/badge.svg)](https://github.com/StasisCo/StasisProxy/actions/workflows/ci.yml)
-\
-[![Container Size](https://ghcr-badge.egpl.dev/stasisco/stasisproxy/size?label=image%20size)](https://github.com/StasisCo/StasisProxy/pkgs/container/stasisproxy)
-[![License](https://img.shields.io/github/license/stasisco/stasisproxy)](./LICENSE)
-[![Version](https://img.shields.io/github/package-json/v/stasisco/stasisproxy)](https://github.com/StasisCo/StasisProxy/releases)
+## Quick start
 
-#### Built with
+You need [Docker](https://docs.docker.com/get-docker/) and a Minecraft (Microsoft) account for the bot. That's it — Postgres and Redis are started for you.
 
-[![Bun](https://img.shields.io/badge/Bun-000?logo=bun&logoColor=fff)](https://bun.sh)
-[![Discord.js](https://img.shields.io/badge/discord.js-5865F2?logo=discord&logoColor=fff)](https://discord.js.org)
-[![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=fff)](https://www.docker.com)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=fff)](https://www.postgresql.org)
-[![Prisma](https://img.shields.io/badge/Prisma-2D3748?logo=prisma&logoColor=fff)](https://www.prisma.io)
-[![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=fff)](https://redis.io)
-[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=fff)](https://www.typescriptlang.org)
+```bash
+git clone https://github.com/dukkkkkkkk/DukPearl.git
+```
 
-</div>
+```bash
+cd DukPearl
+```
 
-# 🚀 Quick Start
+```bash
+./setup.sh
+```
 
-Get up and running in seconds using Docker.
+The script asks for the server and the bot's in-game name, starts everything, and shows the log.
 
-### Prerequisites
-- [Discord Bot Token](https://discord.com/developers/applications) (optional, for Discord integration)
-- [Docker](https://www.docker.com/get-started)
+**First run only:** the log prints a Microsoft link and a code. Open the link, enter the code, and sign in as the bot account. The login is remembered after that.
 
-### Running with Docker Compose
+Then add a server in Minecraft with the address `localhost:25577` and join with the bot account.
 
-1. Clone the repository:
-    ```bash
-    git clone https://github.com/StasisCo/StasisProxy.git
-    cd StasisProxy
-    ```
-    
-2. Create a `.env` file in the root directory with the following content, replacing the placeholders with your actual values:
-    ```env
-    # Required MC server connection details
-    MC_HOST=2b2t.org
-    MC_USERNAME=Username
+### Windows, or without the script
 
-    # Optional Discord integration
-    DISCORD_BOT_TOKEN=...
-    ```
+Copy `.env.example` to `.env`, set `MC_HOST` and `MC_USERNAME` in it, then run:
 
-3. Start the stack:
-    ```bash
-    docker compose up -d
-    ```
-    This brings up the proxy, PostgreSQL, and Redis. The proxy listens on port `25565` by default.
+```bash
+docker compose up -d --build
+```
+
+```bash
+docker compose logs -f dukpearl
+```
+
+## Everyday commands
+
+| What | Command |
+| --- | --- |
+| Watch the log | `docker compose logs -f dukpearl` |
+| Stop | `docker compose down` |
+| Start again | `docker compose up -d` |
+| Update | `git pull && docker compose up -d --build` |
+| Restart after editing `config.yml` | `docker compose restart dukpearl` |
+| Wipe everything (pearls, logins) | `docker compose down -v` |
+
+## Settings
+
+Everything in `.env` — see [`.env.example`](./.env.example) for the full list with explanations. After changing it, run `docker compose up -d`.
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `MC_HOST` | *required* | Server the bot joins, `host` or `host:port` |
+| `MC_USERNAME` | *required* | In-game name of the bot's account |
+| `MC_VERSION` | `1.20.1` | Minecraft protocol version |
+| `PROXY_PORT` | `25577` | Port you connect your own client to |
+| `DISCORD_BOT_TOKEN` | off | Enables the Discord `/load` and `/connect` commands |
+| `DISCORD_WEBHOOK_URL` | off | Posts pearl and alert notifications to a channel |
+| `STASIS_LOCATION_NAME` | `base` | Names players use in chat, e.g. `!load base` |
+| `STASIS_SITE_MAX` | `3` | Max pearls per player at this site |
+| `STASIS_USER_MAX` | `-1` | Max pearls per player across sites sharing a name |
+| `HOLOGRAM_RENDERER` | `body` | `head`, `body`, `text` or `off` |
+
+Bot behaviour (auto-eat, auto-totem, kill aura, …) lives in [`config.yml`](./config.yml). Each module can be turned off with `enabled: false`.
+
+## Using it
+
+- **Players** throw a pearl into a stasis chamber near the bot; it is registered to them automatically. They whisper or say `!load` to be pulled back, and `!pearls` to see how many they have.
+- **You** join `localhost:25577` with the bot account to control it. While connected, `/whitelist add <name>` lets another account join the proxy too, and `/stasis` and `/hologram` manage chambers and holograms.
+- **Discord**: set `DISCORD_BOT_TOKEN`, invite the bot to your server, and players can link their account with `/connect` and use `/load`.
+
+## Troubleshooting
+
+- **`env file .env not found`** — run `./setup.sh`, or copy `.env.example` to `.env`.
+- **No sign-in code in the log** — the login is already saved. To sign in as a different account, run `docker compose down -v` (this also deletes stored pearls) and start again.
+- **"You are not whitelisted on this proxy"** — join with the bot's own account, or have it run `/whitelist add <name>`.
+- **Can't connect to `localhost:25577`** — check `docker compose ps` shows `dukpearl` running, and that the bot has finished joining the server (on 2b2t it waits in the queue first).
+- **Port already in use** — set `PROXY_PORT` in `.env` to another port.
+
+## Development
+
+Needs [Bun](https://bun.sh), plus a Postgres and Redis you point `DATABASE_URL` and `REDIS_URL` at.
+
+```bash
+bun install && bun run generate
+```
+
+```bash
+bun start
+```
+
+`bun run lint` and `bun test` check the code.
+
+## License
+
+[LGPL-2.1](./LICENSE), the same as the upstream StasisProxy project.

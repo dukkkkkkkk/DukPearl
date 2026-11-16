@@ -28,7 +28,7 @@ for (const file of await readdir(commandsDir)) {
  * per startup window — otherwise we hit the global app-command rate limit.
  */
 DiscordClient.client.once(Events.ClientReady, async function(readyClient) {
-	const claim = await redis.set("stasisproxy:discord:register", true, "EX", "60", "NX");
+	const claim = await redis.set("dukpearl:discord:register", true, "EX", "60", "NX");
 	if (claim !== "OK") return;
 	const rest = new REST().setToken(process.env.DISCORD_BOT_TOKEN!);
 	await rest.put(Routes.applicationCommands(readyClient.user.id), {
@@ -53,7 +53,7 @@ DiscordClient.client.on(Events.InteractionCreate, async function(interaction) {
 	// code version, so a bad answer can be traced to the container that produced it (old builds
 	// wrote `true` here — an anonymous claim means an outdated container won). TTL matches the
 	// 15-minute interaction token lifetime to leave a forensic window.
-	const claim = await redis.set(`stasisproxy:discord:interaction:${ interaction.id }`, MinecraftClient.userAgent + ":" + (MinecraftClient.options.username ?? "unknown"), "EX", "900", "NX");
+	const claim = await redis.set(`dukpearl:discord:interaction:${ interaction.id }`, MinecraftClient.userAgent + ":" + (MinecraftClient.options.username ?? "unknown"), "EX", "900", "NX");
 	if (claim !== "OK") return;
 
 	try {

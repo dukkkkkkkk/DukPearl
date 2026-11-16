@@ -10,7 +10,7 @@ import { Vec3 } from "vec3";
 const SELF = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const PEER = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const PLAYER = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
-const CHANNEL = "stasisproxy:cluster:test.invalid";
+const CHANNEL = "dukpearl:cluster:test.invalid";
 
 process.env.STASIS_LOCATION_NAME = "farms,farm,fmtp";
 process.env.STASIS_USER_MAX = "4";
@@ -211,7 +211,7 @@ test("claim lets one bot handle an event", async() => {
 	expect(await ClusterManager.claim("load", "farms", PLAYER)).toBe(true);
 	expect(await ClusterManager.claim("load", "farms", PLAYER)).toBe(false);
 	expect(await ClusterManager.claim("load", "farm", PLAYER)).toBe(true);
-	expect([ ...keys.keys() ]).toContain(`stasisproxy:stasis:claim:test.invalid:load:farms:${ PLAYER }`);
+	expect([ ...keys.keys() ]).toContain(`dukpearl:stasis:claim:test.invalid:load:farms:${ PLAYER }`);
 });
 
 test("totalSuffix only speaks up when other sites hold pearls", () => {

@@ -82,7 +82,7 @@ export class Server {
 	public get motd(): string {
 		const CYCLE_DUR = 3000;
 
-		const HEADER = "§8§l» §3§lStasisProxy §8§l«§r";
+		const HEADER = "§8§l» §3§lDukPearl §8§l«§r";
 		const BODY = [ `§b§n${ MinecraftClient.bot.username }` ];
 
 		if (MinecraftClient.queue.isQueued) {

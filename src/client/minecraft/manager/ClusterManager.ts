@@ -74,7 +74,7 @@ export class ClusterManager {
 		return {
 			id: normalizeUUID(id),
 			host,
-			channel: `stasisproxy:cluster:${ host }`
+			channel: `dukpearl:cluster:${ host }`
 		} as const;
 	}
 
@@ -89,7 +89,7 @@ export class ClusterManager {
 		if (!self) return true;
 
 		// Without Redis there are no peers to coordinate with, so act alone
-		return await redis.set(`stasisproxy:stasis:claim:${ self.host }:${ event.join(":") }`, self.id, "EX", this.CLAIM_TTL_S, "NX")
+		return await redis.set(`dukpearl:stasis:claim:${ self.host }:${ event.join(":") }`, self.id, "EX", this.CLAIM_TTL_S, "NX")
 			.then(result => result === "OK")
 			.catch(() => true);
 	}
@@ -179,7 +179,7 @@ export class ClusterManager {
 	 * @param id This bot's UUID
 	 * @param channel The cluster channel the question arrived on
 	 */
-	public static async answer(query: Query, id: string, channel: `stasisproxy:cluster:${ string }`) {
+	public static async answer(query: Query, id: string, channel: `dukpearl:cluster:${ string }`) {
 		if (query.from === id) return;
 		const named = query.locations.some(name => STASIS_LOCATION_NAMES.includes(name));
 		await redis.emit(channel, { type: "stasis-reply", id: query.id, from: id, stasis: named ? await this.view(query.playerUuid) : null });

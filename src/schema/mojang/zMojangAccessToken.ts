@@ -11,7 +11,7 @@ export const zMojangAccessToken = z.string().transform(async(authorization, ctx)
 	const hash = createHash("sha256").update(authorization).digest("hex");
 
 	try {
-		const cached = await redis.get(`stasisproxy:mcacache:${ hash }`);
+		const cached = await redis.get(`dukpearl:mcacache:${ hash }`);
 		if (cached) {
 			const parsedCache = await zMojangUser.safeParseAsync(cached);
 			if (parsedCache.success) return parsedCache.data;
@@ -38,7 +38,7 @@ export const zMojangAccessToken = z.string().transform(async(authorization, ctx)
 
 		const profile = zMojangUser.parse(parsed.data);
 		try {
-			await redis.set(`stasisproxy:mcacache:${ hash }`, profile, "EX", "604800");
+			await redis.set(`dukpearl:mcacache:${ hash }`, profile, "EX", "604800");
 		} catch {
 
 			// Cache is best-effort; ignore write failures
@@ -46,10 +46,10 @@ export const zMojangAccessToken = z.string().transform(async(authorization, ctx)
 		return profile;
 	};
 
-	let inFlight = inFlightByToken.get(`stasisproxy:mcacache:${ hash }`);
+	let inFlight = inFlightByToken.get(`dukpearl:mcacache:${ hash }`);
 	if (!inFlight) {
-		inFlight = lookup().finally(() => inFlightByToken.delete(`stasisproxy:mcacache:${ hash }`));
-		inFlightByToken.set(`stasisproxy:mcacache:${ hash }`, inFlight);
+		inFlight = lookup().finally(() => inFlightByToken.delete(`dukpearl:mcacache:${ hash }`));
+		inFlightByToken.set(`dukpearl:mcacache:${ hash }`, inFlight);
 	}
 
 	try {
