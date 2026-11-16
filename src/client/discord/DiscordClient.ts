@@ -1,6 +1,6 @@
 import { Webhook, type Embed } from "@vermaysha/discord-webhook";
 import chalk from "chalk";
-import { Client, Events, GatewayIntentBits } from "discord.js";
+import type { Client } from "discord.js";
 import { readdir } from "fs/promises";
 import { join } from "path";
 import prettyMilliseconds from "pretty-ms";
@@ -13,14 +13,11 @@ export class DiscordClient {
 
 	public static readonly logger = new Logger(chalk.hex("#5662f6")("DISCORD"));
 
-	public static readonly client = new Client({
-		intents: [
-			GatewayIntentBits.Guilds,
-			GatewayIntentBits.GuildMessages,
-			GatewayIntentBits.MessageContent,
-			GatewayIntentBits.GuildMembers
-		]
-	});
+	/**
+	 * The discord.js client. Only created when DISCORD_BOT_TOKEN is set — discord.js is loaded
+	 * on demand so a bot that does not use Discord does not pay its memory cost (~35 MB).
+	 */
+	public static client: Client;
 
 	public static async init() {
 
@@ -28,7 +25,17 @@ export class DiscordClient {
 
 		if (this.initialized) return;
 		this.initialized = true;
-		
+
+		const { Client, Events, GatewayIntentBits } = await import("discord.js");
+		this.client = new Client({
+			intents: [
+				GatewayIntentBits.Guilds,
+				GatewayIntentBits.GuildMessages,
+				GatewayIntentBits.MessageContent,
+				GatewayIntentBits.GuildMembers
+			]
+		});
+
 		const listenersDir = join(__dirname, "..", "discord", "listeners");
 		for (const file of await readdir(listenersDir)) {
 			if (!file.endsWith(".ts") && !file.endsWith(".js")) continue;

@@ -1,6 +1,5 @@
 import chalk from "chalk";
 import type { Command } from "commander";
-import { Routes } from "discord.js";
 import { DiscordClient } from "~/client/discord/DiscordClient";
 import { MinecraftClient } from "~/client/minecraft/MinecraftClient";
 import { ChatCommandManager } from "~/client/minecraft/manager/ChatCommandManager";
@@ -29,7 +28,8 @@ export default function(program: Command) {
 			const linked = await redis.get(`dukpearl:discord:ignlink:${ code }:user`);
 			if (!linked) return void MinecraftClient.chat.whisper(player, "Invalid or expired code.");
 
-			const user = await DiscordClient.client.users.fetch(linked.id).catch(() => null);
+			// Without a Discord token this bot has no client and cannot complete the link
+			const user = DiscordClient.client ? await DiscordClient.client.users.fetch(linked.id).catch(() => null) : null;
 			if (!user) return void MinecraftClient.chat.whisper(player, "Invalid or expired code.");
 
 			const playerId = normalizeUUID(player.uuid);
@@ -62,6 +62,7 @@ export default function(program: Command) {
 
 			// Delete the original interaction message if possible
 			const payload = await redis.get(`dukpearl:discord:ignlink:${ code }:message`).catch(() => null);
+			const { Routes } = await import("discord.js");
 			if (payload) await DiscordClient.client.rest.delete(Routes.webhookMessage(payload.applicationId, payload.token, "@original")).catch(() => {});
 
 			// Clean up Redis keys

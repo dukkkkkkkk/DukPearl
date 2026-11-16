@@ -50,6 +50,17 @@ Then join the address it printed (`your-ip:port`) in Minecraft with the bot acco
 | Change your answers | `./launch --setup`, or edit `.env` |
 | Update | `git pull`, then `./launch` |
 
+### Small servers (512 MB)
+
+`./launch` turns on low-memory mode by itself when the machine has under about 1 GB of RAM. It:
+
+- adds a 1 GB swap file if there is no swap, so installing and starting cannot run out of memory
+- shrinks PostgreSQL's memory settings
+- sets `MC_VIEW_DISTANCE=4` so the bot loads fewer chunks (raise it in `.env` if chambers further away are missed)
+- runs the bot with Bun's compact memory mode
+
+Before joining a server the whole stack uses roughly 170 MB (bot ~140, PostgreSQL ~20, Redis ~5). Memory grows once the bot is in game, mostly with view distance and how busy the area is. Use linux mode on a server this small; Docker mode needs more RAM. Leaving `DISCORD_BOT_TOKEN` unset saves a little more. To force the mode on or off, set `LAUNCH_LOWMEM=yes` or `no` in `.env`.
+
 ## Settings
 
 Everything is in `.env` — see [`.env.example`](./.env.example) for the full list with explanations. After changing it, stop DukPearl and run `./launch` again.
